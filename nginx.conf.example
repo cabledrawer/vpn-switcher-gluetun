@@ -1,0 +1,27 @@
+server {
+    listen 80;
+    allow __PROXY_IP__;
+    allow 127.0.0.1;
+    deny all;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    resolver 127.0.0.11 valid=30s;
+    set $glue gluetun:8000;
+
+    location = /api/ip {
+        if ($request_method != GET) { return 405; }
+        proxy_pass http://$glue/v1/publicip/ip;
+        proxy_set_header X-API-Key __GLUETUN_API_KEY__;
+    }
+    location = /api/status {
+        if ($request_method != GET) { return 405; }
+        proxy_pass http://$glue/v1/vpn/status;
+        proxy_set_header X-API-Key __GLUETUN_API_KEY__;
+    }
+    location = /api/settings {
+        if ($request_method != PUT) { return 405; }
+        proxy_pass http://$glue/v1/vpn/settings;
+        proxy_set_header X-API-Key __GLUETUN_API_KEY__;
+    }
+}

@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SABnzbd VPN</title>
+<style>
+:root{
+  --bg:#f4f6fa;--card:#ffffff;--line:#e3e8ef;--tx:#141a24;--mut:#5d6b7e;
+  --chip:#eef2f7;--chip-tx:#2a3546;--ac:#2563eb;--ac-tx:#ffffff;--ac-soft:#e0eaff;
+  --ok:#16a34a;--ok-soft:#dcfce7;--warn:#b45309;--warn-soft:#fef3c7;--bad:#dc2626;--bad-soft:#fee2e2;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0d121b;--card:#161d29;--line:#253043;--tx:#e7edf5;--mut:#93a1b5;
+  --chip:#1f2837;--chip-tx:#d3dbe7;--ac:#5b9bff;--ac-tx:#08111f;--ac-soft:#1b2c4a;
+  --ok:#3fb950;--ok-soft:#13301d;--warn:#e3a33b;--warn-soft:#3a2b10;--bad:#f06a6a;--bad-soft:#3c1717;
+  --shadow:none;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:480px;margin:0 auto;padding:20px 16px 32px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+header p{margin:0;font-size:13px;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 10px}
+.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--tx);display:grid;place-items:center;cursor:pointer}
+.iconbtn:hover{background:var(--chip)}
+.iconbtn svg{width:18px;height:18px}
+.iconbtn.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* status hero */
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:4px 10px 4px 8px;border-radius:999px;background:var(--chip);color:var(--chip-tx)}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn i{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.3}}
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.updated{font-size:12px;color:var(--mut)}
+.exit{display:flex;align-items:center;gap:14px;margin:14px 0 4px}
+.cc{flex:none;display:grid;place-items:center;font-weight:700;letter-spacing:.04em;border-radius:10px;background:var(--chip);color:var(--chip-tx)}
+.cc.big{width:54px;height:54px;font-size:18px}
+.exit-name{font-size:24px;font-weight:650;line-height:1.15;letter-spacing:-.01em}
+.exit-city{color:var(--mut)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--mut)}
+.meta b{color:var(--tx);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* quick tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{position:relative;display:flex;align-items:center;gap:10px;text-align:left;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--tx);font:inherit;cursor:pointer;min-height:58px}
+.tile:hover:not(:disabled){border-color:var(--ac);background:var(--ac-soft)}
+.tile .cc{width:34px;height:34px;font-size:12px}
+.tile small{display:block;font-size:12px;color:var(--mut);line-height:1.2}
+.tile.current{border-color:var(--ok);box-shadow:inset 0 0 0 1px var(--ok)}
+.tile.current::after{content:"Current";position:absolute;top:-8px;right:10px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:999px;background:var(--ok);color:#fff}
+.tile.default .cc{background:var(--ac-soft);color:var(--ac);font-size:18px}
+.tile.rolling{border-color:var(--ac);background:var(--ac-soft);opacity:1!important}
+.tile.rolling .cc{animation:roll .55s cubic-bezier(.45,.05,.55,.95) infinite}
+@keyframes roll{
+  0%{transform:translateY(0) rotate(0)}
+  25%{transform:translateY(-7px) rotate(95deg) scale(1.08)}
+  50%{transform:translateY(0) rotate(180deg)}
+  75%{transform:translateY(-4px) rotate(275deg) scale(1.04)}
+  100%{transform:translateY(0) rotate(360deg)}
+}
+.tile.landed .cc{font-size:12px;font-weight:700;background:var(--ok);color:#fff;animation:land .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes land{0%{transform:scale(.6) rotate(-25deg)}100%{transform:scale(1) rotate(0)}}
+.tiles.cols3{grid-template-columns:repeat(3,1fr)}
+.tiles.cols3 .tile{flex-direction:column;justify-content:center;gap:6px;text-align:center;padding:12px 6px;min-height:84px}
+.tiles.dice{grid-template-columns:1fr;margin-top:8px}
+
+/* country picker */
+.search{position:relative;margin-bottom:8px}
+.search svg{position:absolute;left:11px;top:50%;width:16px;height:16px;transform:translateY(-50%);color:var(--mut)}
+.search input{width:100%;font:inherit;padding:10px 12px 10px 34px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--tx)}
+.search input:focus{outline:2px solid var(--ac);outline-offset:-1px;border-color:transparent}
+.list{max-height:236px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:4px}
+.row{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:8px;background:none;color:var(--tx);font:inherit;text-align:left;cursor:pointer}
+.row:hover:not(:disabled){background:var(--chip)}
+.row .cc{width:30px;height:24px;font-size:11px;border-radius:6px}
+.row.sel{background:var(--ac-soft)}
+.row.sel .cc{background:var(--ac);color:var(--ac-tx)}
+.row .here{margin-left:auto;font-size:12px;color:var(--ok);font-weight:600}
+.empty{padding:14px;text-align:center;color:var(--mut);font-size:13px}
+.primary{width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;background:var(--ac);color:var(--ac-tx);font:inherit;font-weight:650;cursor:pointer}
+.primary:disabled{opacity:.45;cursor:default}
+button:disabled{cursor:default}
+.tile:disabled,.row:disabled{opacity:.55}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+
+/* progress */
+#progress[hidden]{display:none}
+.steps{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}
+.steps li{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:14px}
+.steps li .mk{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center}
+.steps li.active{color:var(--tx);font-weight:550}
+.steps li.active .mk{border-color:var(--ac);border-top-color:transparent;animation:spin .8s linear infinite}
+.steps li.done{color:var(--tx)}
+.steps li.done .mk{border-color:var(--ok);background:var(--ok)}
+.steps li.done .mk::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
+.bar{height:6px;border-radius:99px;background:var(--chip);overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--ac);transition:width .25s linear}
+.ptime{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:6px}
+
+.msg{margin:0 0 14px;padding:11px 13px;border-radius:10px;font-size:14px}
+.msg[hidden]{display:none}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+.msg.bad{background:var(--bad-soft);color:var(--bad)}
+footer{font-size:12.5px;color:var(--mut);line-height:1.55;padding:0 4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>SABnzbd VPN</h1>
+      <p>Exit country for gluetun-sabnzbd</p>
+    </div>
+    <button class="iconbtn" id="refresh" type="button" title="Refresh" aria-label="Refresh status">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    </button>
+  </header>
+
+  <section class="card" aria-live="polite">
+    <div class="hero-top">
+      <span id="pill" class="pill"><i></i><span id="pillText">Checking…</span></span>
+      <span id="updated" class="updated"></span>
+    </div>
+    <div class="exit">
+      <div id="heroCc" class="cc big">··</div>
+      <div>
+        <div id="heroName" class="exit-name">—</div>
+        <div id="heroCity" class="exit-city">&nbsp;</div>
+      </div>
+    </div>
+    <div class="meta">
+      <span>IP <b id="heroIp">—</b></span>
+      <span>Network <b id="heroOrg">—</b></span>
+    </div>
+  </section>
+
+  <div id="msg" class="msg" role="status" hidden></div>
+
+  <section id="progress" class="card" hidden aria-live="polite">
+    <h2 id="progTitle">Switching</h2>
+    <ol class="steps">
+      <li data-step="0"><span class="mk"></span>Sending the new country to gluetun</li>
+      <li data-step="1"><span class="mk"></span>Reconnecting the tunnel</li>
+      <li data-step="2"><span class="mk"></span>Confirming the new exit</li>
+    </ol>
+    <div class="bar"><span id="barFill"></span></div>
+    <div class="ptime"><span>Downloads pause for a few seconds and resume by themselves</span><span id="elapsed">0 s</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Quick switch</h2>
+    <div class="tiles cols3" id="tiles"></div>
+    <div class="tiles dice" id="dice"></div>
+  </section>
+
+  <section class="card">
+    <h2>Other countries</h2>
+    <label class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search countries" autocomplete="off" aria-label="Search countries">
+    </label>
+    <div class="list" id="list" role="listbox" aria-label="Countries"></div>
+    <button class="primary" id="go" type="button" disabled>Choose a country</button>
+  </section>
+
+  <footer>
+    A switch lasts until the gluetun-sabnzbd container is recreated. After that it goes back to the compose default: Switzerland, Sweden or Finland.
+  </footer>
+</main>
+
+<script>
+(function(){
+'use strict';
+
+var COUNTRIES = [
+  ['Austria','AT'],['Belgium','BE'],['Bulgaria','BG'],['Canada','CA'],['Czechia','CZ'],
+  ['Denmark','DK'],['Estonia','EE'],['Finland','FI'],['France','FR'],['Germany','DE'],
+  ['Greece','GR'],['Hungary','HU'],['Iceland','IS'],['Ireland','IE'],['Italy','IT'],
+  ['Japan','JP'],['Latvia','LV'],['Lithuania','LT'],['Luxembourg','LU'],['Netherlands','NL'],
+  ['Norway','NO'],['Poland','PL'],['Portugal','PT'],['Romania','RO'],['Singapore','SG'],
+  ['Slovakia','SK'],['Slovenia','SI'],['Spain','ES'],['Sweden','SE'],['Switzerland','CH'],
+  ['United Kingdom','GB'],['United States','US']
+];
+var QUICK = [
+  {label:'Switzerland', countries:['Switzerland']},
+  {label:'Sweden',      countries:['Sweden']},
+  {label:'Finland',     countries:['Finland']},
+  {label:'Any of 3',    sub:'Switzerland, Sweden or Finland', countries:['Switzerland','Sweden','Finland'], isDefault:true},
+  // Outside the 14 Eyes, strong privacy law, Proton servers present. Edit this line to change the pool.
+  {label:'Privacy pick', sub:'Switzerland, Iceland, Finland or Romania', countries:['Switzerland','Iceland','Finland','Romania'], isDefault:true}
+];
+var ALIASES = {'czech republic':'Czechia','uk':'United Kingdom','usa':'United States','united states of america':'United States'};
+var TIMEOUT = 60000, POLL = 2500;
+
+var $ = function(id){ return document.getElementById(id); };
+var state = { busy:false, status:null, ip:null, updatedAt:0, selected:null, reachable:true, rolling:null };
+var DIE = '\u{1F3B2}', tileEls = [];
+
+function norm(name){
+  if(!name) return '';
+  var k = String(name).trim().toLowerCase();
+  return (ALIASES[k] || String(name).trim()).toLowerCase();
+}
+function codeFor(name){
+  var n = norm(name);
+  for(var i=0;i<COUNTRIES.length;i++) if(COUNTRIES[i][0].toLowerCase()===n) return COUNTRIES[i][1];
+  return name ? String(name).slice(0,2).toUpperCase() : '··';
+}
+function currentCountry(){ return state.ip && state.ip.country ? norm(state.ip.country) : ''; }
+
+async function api(path, opts){
+  var r;
+  try { r = await fetch(path, Object.assign({cache:'no-store'}, opts||{})); }
+  catch(e){ throw new Error('The switcher page could not be reached.'); }
+  var text = await r.text();
+  if(!r.ok){
+    var detail = text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+    try { var j = JSON.parse(text); if(j && j.error) detail = j.error; } catch(e){}
+    if(r.status===502||r.status===504) detail = 'gluetun-sabnzbd is not answering (it may be restarting).';
+    if(r.status===401||r.status===403) detail = 'gluetun refused the API key ('+r.status+').';
+    throw new Error(detail || ('HTTP '+r.status));
+  }
+  // gluetun answers some routes (e.g. PUT /v1/vpn/settings) with plain text, not JSON.
+  if(!text) return {};
+  try { return JSON.parse(text); } catch(e){ return {raw:text.trim()}; }
+}
+
+async function refresh(){
+  var btn = $('refresh'); btn.classList.add('spin');
+  var res = await Promise.allSettled([api('/api/status'), api('/api/ip')]);
+  btn.classList.remove('spin');
+  state.reachable = res[0].status==='fulfilled';
+  state.status = state.reachable ? res[0].value.status : null;
+  if(res[1].status==='fulfilled' && res[1].value && res[1].value.public_ip) state.ip = res[1].value;
+  else if(!state.busy) state.ip = null;
+  state.updatedAt = Date.now();
+  render();
+  // Tunnel up but no exit IP yet (gluetun still fetching it): look again soon rather than in 30 s.
+  clearTimeout(state.soon);
+  if(!state.busy && state.reachable && !state.ip) state.soon = setTimeout(refresh, 3000);
+  return {status:state.status, ip:res[1].status==='fulfilled' ? res[1].value : null};
+}
+
+function setPill(kind, text){
+  $('pill').className = 'pill' + (kind ? ' '+kind : '');
+  $('pillText').textContent = text;
+}
+
+function render(){
+  if(state.busy) setPill('warn','Reconnecting');
+  else if(!state.reachable) setPill('bad',"Can't reach gluetun");
+  else if(state.status==='running') setPill('ok','Connected');
+  else if(state.status==='stopped') setPill('bad','Tunnel down');
+  else setPill('warn', state.status ? ('Tunnel '+state.status) : 'Checking…');
+
+  var ip = state.ip;
+  $('heroCc').textContent = ip ? codeFor(ip.country) : '··';
+  $('heroName').textContent = ip ? (ip.country || 'Unknown country') : (state.reachable ? 'Waiting for exit IP…' : 'No data');
+  var place = ip ? [ip.city, ip.region].filter(function(v,i,a){ return v && v!==ip.country && a.indexOf(v)===i; }).join(', ') : '';
+  $('heroCity').innerHTML = place ? escapeHtml(place) : '&nbsp;';
+  $('heroIp').textContent = ip && ip.public_ip ? ip.public_ip : '—';
+  $('heroOrg').textContent = ip && ip.organization ? ip.organization.replace(/^AS\d+\s+/,'') : '—';
+
+  renderTiles(); renderList(); tickUpdated();
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+function renderTiles(){
+  // Tiles are built once and then only updated, so a rolling dice isn't restarted by each status poll.
+  var cur = currentCountry();
+  if(!tileEls.length){
+    QUICK.forEach(function(q){
+      var box = q.isDefault ? $('dice') : $('tiles');
+      var desc = q.isDefault ? q.countries.slice(0,-1).join(', ')+' or '+q.countries[q.countries.length-1] : q.label;
+      var b = document.createElement('button');
+      b.type='button';
+      var cc = q.isDefault ? DIE : codeFor(q.countries[0]);
+      b.innerHTML = '<span class="cc">'+escapeHtml(cc)+'</span><span>'+escapeHtml(q.label)+
+        (q.sub?'<small>'+escapeHtml(q.sub)+'</small>':'')+'</span>';
+      b.setAttribute('aria-label','Switch to '+(q.isDefault ? 'a random one of '+desc : q.label));
+      b.addEventListener('click', function(){
+        if(state.busy) return;
+        if(!q.isDefault){ switchTo(q.countries, desc); return; }
+        // Roll here, not in gluetun: equal odds per country (gluetun weights by server count),
+        // and never the current country, so every roll is a real change and gluetun reconnects.
+        var cur = currentCountry();
+        var pool = q.countries.filter(function(c){ return c.toLowerCase()!==cur; });
+        if(!pool.length) pool = q.countries.slice();
+        var pick = pool[Math.floor(Math.random()*pool.length)];
+        state.rolling = b; setDie(b, DIE);
+        switchTo([pick], pick, 'Rolled '+pick);
+      });
+      box.appendChild(b);
+      tileEls.push({el:b, q:q});
+    });
+  }
+  tileEls.forEach(function(t){
+    var q = t.q, b = t.el;
+    b.className = 'tile' + (q.isDefault?' default':'') +
+      (!q.isDefault && cur===q.countries[0].toLowerCase() ? ' current':'') +
+      (state.rolling===b ? ' rolling':'') + (b.dataset.landed ? ' landed':'');
+    b.disabled = state.busy;
+  });
+}
+
+function setDie(b, face){ b.querySelector('.cc').textContent = face; }
+
+function landDie(b, face){
+  if(!b) return;
+  state.rolling = null;
+  if(!face){ render(); return; }
+  setDie(b, face); b.dataset.landed = '1'; render();
+  setTimeout(function(){ if(state.rolling!==b){ delete b.dataset.landed; setDie(b, DIE); render(); } }, 4000);
+}
+
+function renderList(){
+  var q = $('q').value.trim().toLowerCase(), cur = currentCountry(), list = $('list');
+  var items = COUNTRIES.filter(function(c){ return !q || c[0].toLowerCase().indexOf(q)!==-1 || c[1].toLowerCase()===q; });
+  list.innerHTML = '';
+  if(!items.length){ list.innerHTML = '<div class="empty">No country matches “'+escapeHtml(q)+'”</div>'; }
+  items.forEach(function(c){
+    var b = document.createElement('button');
+    b.type='button'; b.className='row'+(state.selected===c[0]?' sel':'');
+    b.setAttribute('role','option'); b.setAttribute('aria-selected', state.selected===c[0]);
+    b.disabled = state.busy;
+    b.innerHTML = '<span class="cc">'+c[1]+'</span><span>'+escapeHtml(c[0])+'</span>'+
+      (cur===c[0].toLowerCase() ? '<span class="here">Current</span>' : '');
+    b.addEventListener('click', function(){ state.selected=c[0]; renderList(); });
+    b.addEventListener('dblclick', function(){ state.selected=c[0]; switchTo([c[0]], c[0]); });
+    list.appendChild(b);
+  });
+  var go = $('go');
+  go.disabled = state.busy || !state.selected;
+  go.textContent = state.selected ? 'Switch to '+state.selected : 'Choose a country';
+}
+
+function tickUpdated(){
+  if(!state.updatedAt){ $('updated').textContent=''; return; }
+  var s = Math.round((Date.now()-state.updatedAt)/1000);
+  $('updated').textContent = s<5 ? 'Updated just now' : 'Updated '+(s<60 ? s+' s' : Math.round(s/60)+' min')+' ago';
+}
+
+function showMsg(kind, text){
+  var m = $('msg');
+  if(!text){ m.hidden = true; return; }
+  m.className = 'msg '+kind; m.textContent = text; m.hidden = false;
+}
+
+function setStep(n){
+  document.querySelectorAll('.steps li').forEach(function(li){
+    var i = +li.dataset.step;
+    li.className = i<n ? 'done' : (i===n ? 'active' : '');
+  });
+}
+
+var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+
+async function switchTo(countries, label, title){
+  if(state.busy) return;
+  state.busy = true; showMsg(); render();
+  var targets = countries.map(function(c){ return c.toLowerCase(); });
+  var before = state.ip && state.ip.public_ip;
+  var t0 = Date.now();
+  $('progTitle').textContent = title ? title+', switching' : 'Switching to '+label;
+  $('progress').hidden = false; setStep(0);
+  var timer = setInterval(function(){
+    var ms = Date.now()-t0;
+    $('elapsed').textContent = Math.floor(ms/1000)+' s';
+    $('barFill').style.width = Math.min(100, ms/TIMEOUT*100)+'%';
+  }, 250);
+
+  var result = null;
+  try{
+    await api('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({provider:{server_selection:{countries:countries}}})});
+    setStep(1);
+    while(Date.now()-t0 < TIMEOUT){
+      await sleep(POLL);
+      var r = await refresh();
+      if(r.status==='running') setStep(2);
+      var ip = r.ip;
+      if(r.status==='running' && ip && ip.public_ip){
+        var inTarget = targets.indexOf(norm(ip.country))!==-1;
+        if(ip.public_ip!==before && inTarget){ result='ok'; break; }
+        if(inTarget && Date.now()-t0 > 15000){ result='same'; break; }
+      }
+    }
+    setStep(3);
+    var where = state.ip ? [state.ip.city, state.ip.country].filter(function(v,i,a){ return v && a.indexOf(v)===i; }).join(', ') : label;
+    if(result==='ok') showMsg('ok','Done. Now exiting in '+where+'.');
+    else if(result==='same') showMsg('ok','Connected in '+where+'. gluetun picked the same server as before.');
+    else showMsg('warn','The request was accepted, but the exit hasn’t moved to '+label+' after a minute. Check docker logs gluetun-sabnzbd on the NAS.');
+  }catch(e){
+    showMsg('bad','Switch failed: '+e.message);
+  }finally{
+    clearInterval(timer);
+    var die = state.rolling;
+    if(die){
+      var left = 1200-(Date.now()-t0); if(left>0) await sleep(left);   // let it tumble visibly even on a fast failure
+      landDie(die, (result==='ok'||result==='same') && state.ip ? codeFor(state.ip.country) : null);
+    }
+    state.busy = false;
+    setTimeout(function(){ if(!state.busy) $('progress').hidden = true; }, 1500);
+    await refresh();
+  }
+}
+
+$('go').addEventListener('click', function(){ if(state.selected) switchTo([state.selected], state.selected); });
+$('refresh').addEventListener('click', function(){ if(!state.busy) refresh(); });
+$('q').addEventListener('input', renderList);
+$('q').addEventListener('keydown', function(e){
+  if(e.key!=='Enter') return;
+  var rows = $('list').querySelectorAll('.row');
+  if(rows.length===1) rows[0].click();
+});
+
+render(); refresh();
+setInterval(function(){ if(!state.busy) refresh(); }, 30000);
+setInterval(tickUpdated, 1000);
+})();
+</script>
+</body>
+</html>

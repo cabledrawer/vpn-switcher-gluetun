@@ -1,0 +1,7 @@
+# gluetun control-server auth (mount at /gluetun/auth/config.toml).
+# Gives the switcher only the three routes it needs.
+[[roles]]
+name = "switcher"
+routes = ["GET /v1/publicip/ip", "GET /v1/vpn/status", "PUT /v1/vpn/settings"]
+auth = "apikey"
+apikey = "__GLUETUN_API_KEY__"
